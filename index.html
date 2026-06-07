@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <title>Moj Boks</title>
+  <style>
+    body { font-family: Arial; margin:0; background:#f5f7fb; }
+    header { background:#1f3b73; color:#fff; padding:40px; text-align:center; }
+    .container { max-width:900px; margin:auto; padding:20px; }
+    .box { background:#fff; margin:10px 0; padding:15px; border-radius:10px; }
+    input { padding:10px; width:100%; margin:10px 0; }
+    button { padding:10px 15px; background:#ff7a00; color:#fff; border:0; cursor:pointer; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>Moj Boks</h1>
+  <p>Pronadji skladišni prostor u Srbiji</p>
+</header>
+
+<div class="container">
+
+  <input type="text" id="search" placeholder="Pretrazi grad...">
+  <button onclick="loadData()">Osveži</button>
+
+  <div id="results"></div>
+
+</div>
+
+<script>
+
+const sheetURL = "https://opensheet.elk.sh/YOUR_SHEET_ID/Sheet1";
+
+let data = [];
+
+async function loadData() {
+  const res = await fetch(sheetURL);
+  data = await res.json();
+  render(data);
+}
+
+function render(list) {
+  const container = document.getElementById("results");
+  container.innerHTML = "";
+
+  let search = document.getElementById("search").value.toLowerCase();
+
+  list.filter(item =>
+    item.City.toLowerCase().includes(search)
+  ).forEach(item => {
+    container.innerHTML += `
+      <div class="box">
+        <h3>${item.Title}</h3>
+        <p>${item.Size} | ${item.Price}</p>
+        <p>${item.Description}</p>
+        <p>Kontakt: ${item.Contact}</p>
+      </div>
+    `;
+  });
+}
+
+loadData();
+
+</script>
+
+</body>
+</html>
