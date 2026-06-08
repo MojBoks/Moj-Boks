@@ -1,289 +1,84 @@
 <!DOCTYPE html>
-<html lang="sr">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Moj Boks</title>
 
-<style>
+<script type="module">
 
-body{
-    font-family:Arial,sans-serif;
-    background:#f5f7fb;
-    margin:0;
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+getFirestore,
+collection,
+getDocs,
+doc,
+updateDoc,
+increment
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const app = initializeApp({
+apiKey:"YOUR_KEY",
+authDomain:"YOUR_DOMAIN",
+projectId:"YOUR_PROJECT"
+});
+
+const db = getFirestore(app);
+
+let data = [];
+
+async function load(){
+
+const snap = await getDocs(collection(db,"listings"));
+
+data = snap.docs.map(d => ({id:d.id,...d.data()}));
+
+render(data.filter(x=>x.status==="ACTIVE"));
+
 }
 
-header{
-    background:#1f3b73;
-    color:white;
-    text-align:center;
-    padding:30px;
+window.showContact = async function(id,phone){
+
+document.getElementById("c_"+id).innerHTML = phone;
+
+await updateDoc(doc(db,"listings",id),{
+contactClicks: increment(1)
+});
+
 }
 
-.container{
-    max-width:1200px;
-    margin:auto;
-    padding:20px;
+function render(list){
+
+const el = document.getElementById("list");
+el.innerHTML="";
+
+list.forEach(x=>{
+
+el.innerHTML += `
+<div style="padding:10px;background:#fff;margin:10px">
+
+<h3>${x.companyName}</h3>
+<p>${x.municipality}</p>
+<p>${x.price}</p>
+
+<button onclick="showContact('${x.id}','${x.phone}')">
+Prikaži kontakt
+</button>
+
+<div id="c_${x.id}"></div>
+
+</div>
+`;
+
+});
+
 }
 
-.filters{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-    gap:10px;
-    margin-bottom:20px;
-}
+load();
 
-select,button{
-    padding:10px;
-    border-radius:8px;
-    border:1px solid #ccc;
-}
-
-button{
-    cursor:pointer;
-    background:#ff7a00;
-    color:white;
-    border:none;
-}
-
-.card{
-    background:white;
-    padding:20px;
-    border-radius:10px;
-    margin-bottom:15px;
-    box-shadow:0 2px 8px rgba(0,0,0,0.1);
-}
-
-.card h3{
-    margin-top:0;
-}
-
-.action-buttons{
-    display:flex;
-    gap:10px;
-    margin-top:15px;
-    flex-wrap:wrap;
-}
-
-</style>
+</script>
 </head>
 
 <body>
-
-<header>
-<h1>Moj Boks</h1>
-<p>Platforma za pronalaženje skladišnih kapaciteta u Srbiji</p>
-</header>
-
-<div class="container">
-
-<div class="filters">
-
-<select id="municipality">
-<option value="">Sve opštine</option>
-</select>
-
-<select id="storageType">
-<option value="">Svi tipovi skladišta</option>
-</select>
-
-<select id="goodsType">
-<option value="">Sve vrste robe</option>
-</select>
-
-<select id="services">
-<option value="">Sve usluge</option>
-</select>
-
-<button onclick="filterData()">
-Pretraži
-</button>
-
-<button onclick="renderCards(allData)">
-Prikaži sve
-</button>
-
-</div>
-
-<div id="results"></div>
-
-</div>
-
-<script>
-
-const sheetURL =
-"https://opensheet.elk.sh/YOUR_SHEET_ID/Sheet1";
-
-let allData = [];
-
-async function loadData(){
-
-    const response = await fetch(sheetURL);
-
-    allData = await response.json();
-
-    populateFilters();
-
-    renderCards(allData);
-
-}
-
-function populateFilters(){
-
-    fillSelect("municipality","Municipality");
-    fillSelect("storageType","StorageType");
-    fillSelect("goodsType","GoodsType");
-    fillSelect("services","ServicesDetails");
-
-}
-
-function fillSelect(selectId,column){
-
-    const select = document.getElementById(selectId);
-
-    const values =
-    [...new Set(
-        allData
-        .map(x => x[column])
-        .filter(Boolean)
-    )];
-
-    values.sort();
-
-    values.forEach(value => {
-
-        const option =
-        document.createElement("option");
-
-        option.value = value;
-        option.textContent = value;
-
-        select.appendChild(option);
-
-    });
-
-}
-
-function renderCards(data){
-
-    const results =
-    document.getElementById("results");
-
-    results.innerHTML = "";
-
-    if(data.length === 0){
-
-        results.innerHTML =
-        "<p>Nema rezultata.</p>";
-
-        return;
-
-    }
-
-    data.forEach(item => {
-
-        const mapLink =
-        item.Address
-        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.Address)}`
-        : "#";
-
-        const card = `
-
-        <div class="card">
-
-        <h3>${item.CompanyName || ""}</h3>
-
-        <p><strong>Opština:</strong> ${item.Municipality || ""}</p>
-
-        <p><strong>Tip skladišta:</strong> ${item.StorageType || ""}</p>
-
-        <p><strong>Vrsta robe:</strong> ${item.GoodsType || ""}</p>
-
-        <p><strong>Dodatne usluge:</strong> ${item.AdditionalServices || ""}</p>
-
-        <p><strong>Koje usluge:</strong> ${item.ServicesDetails || ""}</p>
-
-        <p><strong>Sezonske oscilacije:</strong> ${item.SeasonalFluctuations || ""}</p>
-
-        <p><strong>Ukupan kapacitet:</strong> ${item.TotalCapacity || ""}</p>
-
-        <p><strong>Kapacitet jedinice:</strong> ${item.UnitCapacity || ""}</p>
-
-        <p><strong>Kontakt:</strong> ${item.Contact || ""}</p>
-
-        <p><strong>Cena:</strong> ${item.Price || ""}</p>
-
-        <div class="action-buttons">
-
-            <a href="mailto:${item.Email || ""}?subject=Upit preko Moj Boks platforme">
-                <button>Pošalji upit</button>
-            </a>
-
-            <a href="${mapLink}" target="_blank">
-                <button>Mapa</button>
-            </a>
-
-        </div>
-
-        </div>
-
-        `;
-
-        results.innerHTML += card;
-
-    });
-
-}
-
-function filterData(){
-
-    const municipality =
-    document.getElementById("municipality").value;
-
-    const storageType =
-    document.getElementById("storageType").value;
-
-    const goodsType =
-    document.getElementById("goodsType").value;
-
-    const services =
-    document.getElementById("services").value;
-
-    const filtered =
-    allData.filter(item => {
-
-        return (
-
-            (!municipality ||
-             item.Municipality === municipality)
-
-            &&
-
-            (!storageType ||
-             item.StorageType === storageType)
-
-            &&
-
-            (!goodsType ||
-             item.GoodsType === goodsType)
-
-            &&
-
-            (!services ||
-             item.ServicesDetails === services)
-
-        );
-
-    });
-
-    renderCards(filtered);
-
-}
-
-loadData();
-
-</script>
-
+<div id="list"></div>
 </body>
 </html>
