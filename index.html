@@ -1,29 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="sr">
 <head>
 <meta charset="UTF-8">
 <title>Moj Boks</title>
 
 <style>
-body{font-family:Arial;background:#f5f7fb;margin:0}
-.card{background:white;margin:10px;padding:10px;border-radius:10px}
-input{padding:10px;width:300px;margin:10px}
+body{font-family:Arial;background:#f4f6f9;margin:0}
+header{background:#1f3b73;color:white;padding:20px}
+.container{padding:20px}
+
+.card{
+background:white;padding:15px;margin:10px 0;border-radius:10px;
+box-shadow:0 2px 5px rgba(0,0,0,0.1)
+}
+
+button{padding:8px;margin:5px}
+.hidden{display:none}
 </style>
 </head>
 
 <body>
 
+<header>
 <h2>Moj Boks</h2>
+</header>
+
+<div class="container">
 
 <input id="search" placeholder="Pretraga..." oninput="filter()">
 
 <div id="list"></div>
 
+</div>
+
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-getFirestore, collection, getDocs
+getFirestore,
+collection,
+getDocs,
+doc,
+updateDoc,
+increment
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const app = initializeApp({
@@ -40,22 +59,52 @@ async function load(){
 
 const snap = await getDocs(collection(db,"listings"));
 
-all = snap.docs.map(d=>d.data());
+all = snap.docs.map(d=>({id:d.id,...d.data()}));
 
 render(all);
 
 }
 
-window.filter = function(){
+window.filter=function(){
 
-const q = document.getElementById("search").value.toLowerCase();
+let q=document.getElementById("search").value.toLowerCase();
 
-render(all.filter(x =>
+render(all.filter(x=>
 (x.companyName||"").toLowerCase().includes(q) ||
 (x.municipality||"").toLowerCase().includes(q) ||
 (x.goodsType||"").toLowerCase().includes(q)
 ));
 
+}
+
+window.details = async function(item){
+
+await updateDoc(doc(db,"listings",item.id),{
+views: increment(1)
+});
+
+alert(`
+${item.companyName}
+${item.municipality}
+${item.storageType}
+${item.goodsType}
+${item.additionalServices}
+${item.servicesDetails}
+${item.totalCapacity}
+${item.unitCapacity}
+${item.address}
+${item.price}
+`);
+
+}
+
+window.showContact = async function(id,phone,email){
+
+await updateDoc(doc(db,"listings",id),{
+contactClicks: increment(1)
+});
+
+alert("Telefon: " + phone + "\nEmail: " + email);
 }
 
 function render(data){
@@ -64,15 +113,22 @@ list.innerHTML="";
 
 data.forEach(x=>{
 
-list.innerHTML += `
+list.innerHTML+=`
+
 <div class="card">
 
 <h3>${x.companyName}</h3>
-<p>${x.municipality}</p>
-<p>${x.storageType}</p>
+<p>${x.municipality} | ${x.storageType}</p>
 <p>${x.price}</p>
 
+<button onclick='details(${JSON.stringify(x)})'>Detalji</button>
+
+<button onclick="showContact('${x.id}','${x.phone}','${x.email}')">
+Kontakt
+</button>
+
 </div>
+
 `;
 
 });
