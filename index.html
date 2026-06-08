@@ -5,33 +5,74 @@
 <title>Moj Boks</title>
 
 <style>
-body{font-family:Arial;background:#f4f6f9;margin:0}
-header{background:#1f3b73;color:white;padding:20px}
-.container{padding:20px}
+body{margin:0;font-family:Arial;background:#f3f6fb}
 
-.card{
-background:white;padding:15px;margin:10px 0;border-radius:10px;
-box-shadow:0 2px 5px rgba(0,0,0,0.1)
+/* HEADER */
+.header{
+background:#1e5eff;
+color:white;
+text-align:center;
+padding:40px 20px;
 }
 
-button{padding:8px;margin:5px}
-.hidden{display:none}
+.header h1{margin:0;font-size:34px}
+.header p{margin-top:10px;font-size:16px}
+
+/* FILTERI */
+.filters{
+padding:15px;
+display:flex;
+gap:10px;
+flex-wrap:wrap;
+justify-content:center;
+}
+
+select,input{
+padding:10px;
+}
+
+/* CARD */
+.card{
+background:white;
+margin:10px auto;
+padding:15px;
+width:90%;
+max-width:600px;
+border-radius:10px;
+box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* FOOTER */
+footer{
+text-align:center;
+font-size:12px;
+padding:20px;
+color:gray;
+}
+button{padding:8px;margin-top:8px}
 </style>
 </head>
 
 <body>
 
-<header>
-<h2>Moj Boks</h2>
-</header>
+<div class="header">
+<h1>Moj Boks</h1>
+<p>Platforma za pronalaženje skladišnog prostora u Srbiji</p>
+</div>
 
-<div class="container">
-
+<div class="filters">
 <input id="search" placeholder="Pretraga..." oninput="filter()">
+
+<select id="municipality" onchange="filter()"></select>
+<select id="storageType" onchange="filter()"></select>
+<select id="goodsType" onchange="filter()"></select>
+</div>
 
 <div id="list"></div>
 
-</div>
+<footer>
+Kontakt za buduće partnere Moj Boks sistema: +381 628051187
+</footer>
 
 <script type="module">
 
@@ -45,10 +86,18 @@ updateDoc,
 increment
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+import {
+getStorage,
+ref,
+uploadBytes,
+getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
 const app = initializeApp({
 apiKey:"AIzaSyCcB5d4GhAM2llii0YEF-GYah8x1I7Fklc",
 authDomain:"moj-boks.firebaseapp.com",
-projectId:"moj-boks"
+projectId:"moj-boks",
+storageBucket:"moj-boks.firebasestorage.appYOUR_BUCKET"
 });
 
 const db = getFirestore(app);
@@ -59,52 +108,71 @@ async function load(){
 
 const snap = await getDocs(collection(db,"listings"));
 
-all = snap.docs.map(d=>({id:d.id,...d.data()}));
+all = snap.docs.map(d=>({id:d.id,...d.data()}))
+.filter(x=>x.status==="ACTIVE");
 
+fillFilters();
 render(all);
+
+}
+
+function fillFilters(){
+
+const m=[...new Set(all.map(x=>x.municipality))];
+const s=[...new Set(all.map(x=>x.storageType))];
+const g=[...new Set(all.map(x=>x.goodsType))];
+
+document.getElementById("municipality").innerHTML =
+"<option value=''>Opština</option>" + m.map(x=>`<option>${x}</option>`);
+
+document.getElementById("storageType").innerHTML =
+"<option value=''>Tip</option>" + s.map(x=>`<option>${x}</option>`);
+
+document.getElementById("goodsType").innerHTML =
+"<option value=''>Roba</option>" + g.map(x=>`<option>${x}</option>`);
 
 }
 
 window.filter=function(){
 
 let q=document.getElementById("search").value.toLowerCase();
+let m=document.getElementById("municipality").value;
+let s=document.getElementById("storageType").value;
+let g=document.getElementById("goodsType").value;
 
 render(all.filter(x=>
-(x.companyName||"").toLowerCase().includes(q) ||
-(x.municipality||"").toLowerCase().includes(q) ||
-(x.goodsType||"").toLowerCase().includes(q)
+(!m || x.municipality===m) &&
+(!s || x.storageType===s) &&
+(!g || x.goodsType===g) &&
+(x.companyName||"").toLowerCase().includes(q)
 ));
 
 }
 
-window.details = async function(item){
+window.details=async function(x){
 
-await updateDoc(doc(db,"listings",item.id),{
-views: increment(1)
+await updateDoc(doc(db,"listings",x.id),{
+views:increment(1)
 });
 
-alert(`
-${item.companyName}
-${item.municipality}
-${item.storageType}
-${item.goodsType}
-${item.additionalServices}
-${item.servicesDetails}
-${item.totalCapacity}
-${item.unitCapacity}
-${item.address}
-${item.price}
-`);
+alert(
+x.companyName + "\n" +
+x.municipality + "\n" +
+x.storageType + "\n" +
+x.goodsType + "\n" +
+x.price + "\n" +
+x.address
+);
 
 }
 
-window.showContact = async function(id,phone,email){
+window.showContact=async function(x){
 
-await updateDoc(doc(db,"listings",id),{
-contactClicks: increment(1)
+await updateDoc(doc(db,"listings",x.id),{
+contactClicks:increment(1)
 });
 
-alert("Telefon: " + phone + "\nEmail: " + email);
+alert("Telefon: " + x.phone + "\nEmail: " + x.email);
 }
 
 function render(data){
@@ -114,7 +182,6 @@ list.innerHTML="";
 data.forEach(x=>{
 
 list.innerHTML+=`
-
 <div class="card">
 
 <h3>${x.companyName}</h3>
@@ -122,15 +189,10 @@ list.innerHTML+=`
 <p>${x.price}</p>
 
 <button onclick='details(${JSON.stringify(x)})'>Detalji</button>
-
-<button onclick="showContact('${x.id}','${x.phone}','${x.email}')">
-Kontakt
-</button>
+<button onclick='showContact(${JSON.stringify(x)})'>Kontakt</button>
 
 </div>
-
 `;
-
 });
 
 }
