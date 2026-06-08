@@ -1,1 +1,221 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel - Moj Boks</title>
 
+<style>
+body{font-family:Arial;margin:0;background:#f4f6fb}
+
+header{
+background:#1e5eff;
+color:white;
+padding:20px;
+text-align:center;
+}
+
+.container{padding:20px}
+
+.card{
+background:white;
+padding:15px;
+margin:10px 0;
+border-radius:10px;
+box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+input,select{
+padding:8px;
+margin:5px;
+width:200px;
+}
+
+button{
+padding:8px;
+margin:5px;
+cursor:pointer;
+}
+
+.loginBox{
+max-width:300px;
+margin:50px auto;
+background:white;
+padding:20px;
+border-radius:10px;
+}
+
+.hidden{display:none}
+
+img{max-width:100px}
+</style>
+</head>
+
+<body>
+
+<header>
+<h2>Admin Panel - Moj Boks</h2>
+</header>
+
+<!-- LOGIN -->
+<div id="loginBox" class="loginBox">
+<h3>Login</h3>
+<input id="email" placeholder="Email"><br>
+<input id="password" type="password" placeholder="Password"><br>
+<button onclick="login()">Login</button>
+</div>
+
+<!-- PANEL -->
+<div id="panel" class="container hidden">
+
+<h3>Oglasi</h3>
+
+<div id="list"></div>
+
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+getAuth,
+signInWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+import {
+getFirestore,
+collection,
+getDocs,
+doc,
+updateDoc,
+deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+import {
+getStorage,
+ref,
+uploadBytes,
+getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+const app = initializeApp({
+apiKey:"AIzaSyCcB5d4GhAM2llii0YEF-GYah8x1I7Fklc",
+authDomain:"moj-boks.firebaseapp.com",
+projectId:"moj-boks",
+storageBucket:"moj-boks.firebasestorage.app"
+});
+
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+let all=[];
+
+// LOGIN
+window.login = async function(){
+
+let email=document.getElementById("email").value;
+let pass=document.getElementById("password").value;
+
+await signInWithEmailAndPassword(auth,email,pass);
+
+document.getElementById("loginBox").classList.add("hidden");
+document.getElementById("panel").classList.remove("hidden");
+
+load();
+
+}
+
+// LOAD DATA
+async function load(){
+
+const snap = await getDocs(collection(db,"listings"));
+
+all = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+render();
+
+}
+
+// UPDATE FIELD
+window.updateField = async function(id,field,value){
+
+await updateDoc(doc(db,"listings",id),{
+[field]: value
+});
+
+load();
+
+}
+
+// DELETE
+window.remove = async function(id){
+
+await deleteDoc(doc(db,"listings",id));
+
+load();
+
+}
+
+// IMAGE UPLOAD
+window.uploadImage = async function(file,id){
+
+const storageRef = ref(storage,"listings/"+id);
+
+await uploadBytes(storageRef,file);
+
+const url = await getDownloadURL(storageRef);
+
+await updateDoc(doc(db,"listings",id),{
+imageUrl:url
+});
+
+load();
+
+}
+
+// RENDER
+function render(){
+
+let list=document.getElementById("list");
+list.innerHTML="";
+
+all.forEach(x=>{
+
+list.innerHTML+=`
+
+<div class="card">
+
+<h3>${x.companyName}</h3>
+
+<p>${x.municipality}</p>
+
+<p>${x.storageType}</p>
+
+<p>Status:
+<select onchange="updateField('${x.id}','status',this.value)">
+<option ${x.status==="ACTIVE"?"selected":""}>ACTIVE</option>
+<option ${x.status==="PENDING"?"selected":""}>PENDING</option>
+<option ${x.status==="REJECTED"?"selected":""}>REJECTED</option>
+</select>
+</p>
+
+<p>Price: <input value="${x.price}" onchange="updateField('${x.id}','price',this.value)"></p>
+
+<p>Views: ${x.views || 0} | Clicks: ${x.contactClicks || 0}</p>
+
+<input type="file" onchange="uploadImage(this.files[0],'${x.id}')">
+
+<button onclick="remove('${x.id}')">Obriši</button>
+
+</div>
+
+`;
+
+});
+
+}
+
+</script>
+
+</body>
+</html>
