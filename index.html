@@ -4,16 +4,26 @@
 <meta charset="UTF-8">
 <title>Moj Boks</title>
 
+<style>
+body{font-family:Arial;background:#f5f7fb;margin:0}
+.card{background:white;margin:10px;padding:10px;border-radius:10px}
+input{padding:10px;width:300px;margin:10px}
+</style>
+</head>
+
+<body>
+
+<h2>Moj Boks</h2>
+
+<input id="search" placeholder="Pretraga..." oninput="filter()">
+
+<div id="list"></div>
+
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
-getFirestore,
-collection,
-getDocs,
-doc,
-updateDoc,
-increment
+getFirestore, collection, getDocs
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const app = initializeApp({
@@ -24,47 +34,43 @@ projectId:"moj-boks"
 
 const db = getFirestore(app);
 
-let data = [];
+let all=[];
 
 async function load(){
 
 const snap = await getDocs(collection(db,"listings"));
 
-data = snap.docs.map(d => ({id:d.id,...d.data()}));
+all = snap.docs.map(d=>d.data());
 
-render(data.filter(x=>x.status==="ACTIVE"));
-
-}
-
-window.showContact = async function(id,phone){
-
-document.getElementById("c_"+id).innerHTML = phone;
-
-await updateDoc(doc(db,"listings",id),{
-contactClicks: increment(1)
-});
+render(all);
 
 }
 
-function render(list){
+window.filter = function(){
 
-const el = document.getElementById("list");
-el.innerHTML="";
+const q = document.getElementById("search").value.toLowerCase();
 
-list.forEach(x=>{
+render(all.filter(x =>
+(x.companyName||"").toLowerCase().includes(q) ||
+(x.municipality||"").toLowerCase().includes(q) ||
+(x.goodsType||"").toLowerCase().includes(q)
+));
 
-el.innerHTML += `
-<div style="padding:10px;background:#fff;margin:10px">
+}
+
+function render(data){
+
+list.innerHTML="";
+
+data.forEach(x=>{
+
+list.innerHTML += `
+<div class="card">
 
 <h3>${x.companyName}</h3>
 <p>${x.municipality}</p>
+<p>${x.storageType}</p>
 <p>${x.price}</p>
-
-<button onclick="showContact('${x.id}','${x.phone}')">
-Prikaži kontakt
-</button>
-
-<div id="c_${x.id}"></div>
 
 </div>
 `;
@@ -76,9 +82,6 @@ Prikaži kontakt
 load();
 
 </script>
-</head>
 
-<body>
-<div id="list"></div>
 </body>
 </html>
